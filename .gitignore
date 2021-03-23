@@ -1,0 +1,7 @@
+database/
+
+notes.txt
+
+.env
+
+!database/.placeholder
