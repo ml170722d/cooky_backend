@@ -1,7 +1,7 @@
-database/
+database/*
 
 notes.txt
 
 .env
 
-!database/.placeholder
+!database/placeholder
