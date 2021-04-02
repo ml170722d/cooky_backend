@@ -1,94 +1,85 @@
-const { MongoClient, Db, ObjectId, } = require('mongodb');
-const { URI, DB } = require("./uri");
+const { MongoClient } = require('mongodb');
+const { URL } = require("./url");
 
 function _connect() {
     return new Promise((res, rej) => {
-        res(MongoClient.connect(URI, { useUnifiedTopology: true, useNewUrlParser: true }));
+        MongoClient.connect(URL, { useUnifiedTopology: true, useNewUrlParser: true })
+            .then(client => {
+                res(client);
+            });
     });
 }
 
-function _db(name = undefined) {
+function register({ username, password, email }) {
     return new Promise((res, rej) => {
-        _connect().then(client => {
-            if (name === undefined) throw TypeError('Name of database not provided', 'dbOper.js');
-            if (!(client instanceof MongoClient)) throw new TypeError('Not instanceof MongoClient', 'dbOper.js');
+        _connect().then(conn => {
+            if (conn instanceof MongoClient) {
+                let coll = conn.db().collection('users');
+                coll.countDocuments({
+                    user: username
+                }).then(n => {
+                    if (n > 0) return rej(406);
 
-            res(client.db(name));
-        }).catch(err => console.error(err));
-    })
-}
+                    coll.insertOne({
+                        user: username,
+                        pwd: password,
+                        email: email
+                    }).then(r => {
+                        res(201);
+                    });
 
-function register(username, password) {
-    return new Promise((res, rej) => {
-        _db(DB).then(db => {
-            if (db instanceof Db) {
-                const coll = db.collection('users');
-
-                coll.find({
-                    username: username
-                }).toArray().then(list => {
-                    if (list.length === 0) {
-                        coll.insertOne({
-                            username: username,
-                            password: password
-                        });
-                        res(true);
-                    } else {
-                        res(false);
-                    }
-                });
+                }).catch(console.error);
             }
-        }).catch(err => console.error(err));
+        }).catch(console.error);
     });
 }
 
-function deleteOne(id) {
+function unregister({ username, password }) {
     return new Promise((res, rej) => {
-        _db(DB).then(db => {
-            if (db instanceof Db) {
-                const coll = db.collection('users');
+        _connect().then(conn => {
+            if (conn instanceof MongoClient) {
+                let coll = conn.db().collection('users');
+                coll.countDocuments({
+                    user: username,
+                    pwd: password
+                }).then(n => {
+                    if (n === 0) return rej(401);
+                    if (n > 1) throw new Error('Two or more users with same username');
 
-                coll.findOneAndDelete({ _id: ObjectId(id) }).then(doc => {
-                    // console.log(doc);
-                    if (doc.value != null)
+                    coll.deleteOne({
+                        user: username
+                    }).then(r => {
                         res(200);
-                    else
-                        res(403);
-                }).catch(err => {
-                    console.error(err);
-                    res(500);
-                });
+                    })
+
+                }).catch(console.error);
             }
-        }).catch(err => console.error(err));
+        }).catch(console.error);
     });
 }
 
-function unregister(username, password) {
+function signin({ username, password }) {
     return new Promise((res, rej) => {
-        _db(DB).then(db => {
-            if (db instanceof Db) {
-                const coll = db.collection('users');
+        _connect().then(conn => {
+            if (conn instanceof MongoClient) {
+                let coll = conn.db().collection('users');
+                coll.countDocuments({
+                    user: username,
+                    pwd: password
+                }).then(n => {
+                    if (n === 0) return rej(401);
+                    if (n > 1) throw new Error('Two or more users with same username');
 
-                coll.find({ username: username }).toArray().then(list => {
-                    if (list.length === 1) {
-                        if (list[0].password === password) {
-                            res({ id: list[0]._id });
-                        } else {
-                            res({});
-                        }
-                    } else if (list.length > 1) {
-                        throw Error('Multiple users with same username');
-                    } else {
-                        res({});
-                    }
-                });
+                    res(202);
+                }).catch(console.error);
             }
-        }).catch(err => console.error(err));
+        }).catch(console.error);
     });
 }
+
 
 module.exports = {
     register,
     unregister,
-    deleteOne,
+    signin,
 }

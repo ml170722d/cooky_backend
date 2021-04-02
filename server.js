@@ -1,5 +1,5 @@
 const express = require('express');
-const { register, unregister, deleteOne } = require('./modules/dbOper');
+const { register, unregister, signin } = require('./modules/dbOper');
 
 const app = express();
 
@@ -9,50 +9,35 @@ app.use(express.urlencoded({ extended: true }));
 const port = 8081;
 
 app.post('/register', (req, res) => {
-    if (!req.body.hasOwnProperty('username') || !req.body.hasOwnProperty('password')){
-        res.sendStatus(400);
-        return;
-    }
-
-    register(req.body.username, req.body.password).then(success => {
-        if (success) {
-            res.sendStatus(200);
-        } else {
-            res.sendStatus(406);
-        }
-    }).catch(e => { console.log(e) });
+    register(req.body)
+        .then(success => res.sendStatus(success))
+        .catch(fail => res.sendStatus(fail));
 });
 
-app.post('/unregister', (req, res) => {
-    if (!req.body.hasOwnProperty('username') || !req.body.hasOwnProperty('password')){
-        res.sendStatus(400);
-        return;
-    }
-
-    unregister(req.body.username, req.body.password).then(user => {
-        if (user.id === ''){
-            res.statusCode = 401;
-        }
-        res.json(user);
-    }).catch(e => {
-        console.log(e);
-        res.statusCode = 503;
-        res.json(e);
-    });
-})
-
 app.delete('/unregister', (req, res) => {
-    if (!req.body.hasOwnProperty('id')){
-        res.sendStatus(400);
-        return;
-    }
+    unregister(req.body)
+        .then(success => res.sendStatus(success))
+        .catch(err => {
+            if (err instanceof Error) {
+                console.error(err);
+                res.sendStatus(500);
+            } else {
+                res.sendStatus(err);
+            }
+        });
+});
 
-    deleteOne(req.body.id).then(code=>{
-        res.sendStatus(code);
-    }).catch(e=>{
-        console.error(e);
-        res.sendStatus(500);
-    })
+app.post('/signin', (req, res) => {
+    signin(req.body)
+        .then(success => res.sendStatus(success))
+        .catch(err => {
+            if (err instanceof Error) {
+                console.error(err);
+                res.sendStatus(500);
+            } else {
+                res.sendStatus(err);
+            }
+        });
 })
 
 const serverListener = app.listen(port, () => {
